@@ -1,0 +1,20 @@
+indodana_lending:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+
+      # Snowflake-hosted dbt authenticates through the calling session, so
+      # there is no account, user, password, or authenticator here — and
+      # `snow dbt deploy` rejects the auth fields outright.
+      account: "not needed"
+      user: "not needed"
+
+      # Resolved at runtime from env.yml rather than hardcoded, so the
+      # project is portable across accounts and roles.
+      role: "{{ env_var('DBT_CURRENT_ROLE') }}"
+
+      warehouse: DEFAULT_WH
+      database: DEMO_INDODANA
+      schema: DBT
+      threads: 8

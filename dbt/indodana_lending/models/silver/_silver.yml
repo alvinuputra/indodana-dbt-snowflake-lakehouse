@@ -1,0 +1,118 @@
+version: 2
+
+models:
+  - name: slv_customers
+    description: >
+      Current state of every customer, resolved from the bronze change
+      stream. The uniqueness test here is the single most important test in
+      the project: it is what proves the CDC resolution actually collapses
+      N versions down to one row per key.
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: cdc_op
+        tests:
+          - accepted_values:
+              values: ['I', 'U', 'D']
+      - name: kyc_status
+        tests:
+          - accepted_values:
+              values: ['VERIFIED', 'PENDING', 'REJECTED']
+      - name: risk_segment
+        tests:
+          - accepted_values:
+              values: ['A', 'B', 'C', 'D', 'E']
+      - name: credit_limit
+        description: "Latest approved credit limit in IDR."
+        tests: [not_null]
+
+  - name: slv_leads
+    columns:
+      - name: lead_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests:
+          - relationships:
+              to: ref('slv_customers')
+              field: customer_id
+
+  - name: slv_loan_applications
+    columns:
+      - name: application_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('slv_customers')
+              field: customer_id
+      - name: decision
+        tests:
+          - accepted_values:
+              values: ['APPROVED', 'DECLINED', 'PENDING', 'CANCELLED']
+
+  - name: slv_loans
+    columns:
+      - name: loan_id
+        tests: [unique, not_null]
+      - name: application_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('slv_loan_applications')
+              field: application_id
+      - name: loan_status
+        tests:
+          - accepted_values:
+              values: ['ACTIVE', 'PAID_OFF', 'DELINQUENT', 'WRITTEN_OFF', 'RESTRUCTURED']
+      - name: principal_amount
+        tests: [not_null]
+
+  - name: slv_installments
+    columns:
+      - name: installment_id
+        tests: [unique, not_null]
+      - name: loan_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('slv_loans')
+              field: loan_id
+      - name: installment_status
+        tests:
+          - accepted_values:
+              values: ['UNPAID', 'PARTIAL', 'PAID', 'WAIVED']
+
+  - name: slv_payments
+    columns:
+      - name: payment_id
+        tests: [unique, not_null]
+      - name: loan_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('slv_loans')
+              field: loan_id
+      - name: amount
+        tests: [not_null]
+
+  - name: slv_collection_activities
+    columns:
+      - name: activity_id
+        tests: [unique, not_null]
+      - name: loan_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('slv_loans')
+              field: loan_id
+
+  - name: slv_partners
+    columns:
+      - name: partner_id
+        tests: [unique, not_null]
+
+  - name: slv_merchants
+    columns:
+      - name: merchant_id
+        tests: [unique, not_null]

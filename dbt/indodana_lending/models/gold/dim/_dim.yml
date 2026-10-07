@@ -1,0 +1,73 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Conformed date dimension spanning the observable loan book."
+    columns:
+      - name: date_day
+        tests: [unique, not_null]
+      - name: date_key
+        tests: [unique, not_null]
+
+  - name: dim_customer
+    description: "Current-state customer dimension; tombstoned rows excluded."
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: risk_segment
+        tests:
+          - accepted_values:
+              values: ['A', 'B', 'C', 'D', 'E']
+      - name: acquisition_platform
+        tests:
+          - accepted_values:
+              values: ['CERMATI_MARKETPLACE', 'INDODANA_DIRECT']
+
+  - name: dim_customer_credit_history
+    description: >
+      SCD2 credit profile history from the dbt snapshot. Join with
+      `on dim.customer_id = f.customer_id and f.event_ts between
+      dim.valid_from and dim.valid_to` for point-in-time correctness.
+    columns:
+      - name: customer_credit_sk
+        tests: [unique, not_null]
+      - name: customer_id
+        tests: [not_null]
+      - name: valid_from
+        tests: [not_null]
+      - name: valid_to
+        tests: [not_null]
+
+  - name: dim_loan
+    description: "Current-state loan dimension (descriptive attributes only)."
+    columns:
+      - name: loan_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: product_type
+        tests:
+          - accepted_values:
+              values: ['PAYLATER', 'KTA', 'MULTIGUNA', 'CREDIT_CARD']
+      - name: origination_platform
+        tests:
+          - accepted_values:
+              values: ['CERMATI_MARKETPLACE', 'INDODANA_DIRECT']
+
+  - name: dim_partner
+    columns:
+      - name: partner_id
+        tests: [unique, not_null]
+      - name: partner_type
+        tests:
+          - accepted_values:
+              values: ['BANK', 'MULTIFINANCE', 'FINTECH', 'INSURANCE']
+
+  - name: dim_merchant
+    columns:
+      - name: merchant_id
+        tests: [unique, not_null]

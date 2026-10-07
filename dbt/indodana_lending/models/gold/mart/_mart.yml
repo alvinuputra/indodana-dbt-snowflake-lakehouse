@@ -1,0 +1,56 @@
+version: 2
+
+models:
+  - name: mart_origination_funnel
+    description: >
+      Lead -> application -> approval -> disbursement funnel by month,
+      product and acquisition platform, with cost per disbursed loan.
+    tests:
+      - unique:
+          column_name: "period_month || '|' || product_type || '|' || origination_platform || '|' || lead_source"
+
+  - name: mart_portfolio_quality
+    description: >
+      Asset quality as at today by product, risk segment and partner.
+      NPL is value-weighted on outstanding exposure.
+    tests:
+      - unique:
+          column_name: "product_type || '|' || risk_segment || '|' || partner_id"
+    columns:
+      - name: npl_ratio_by_value_pct
+        tests: [not_null]
+
+  - name: mart_vintage_analysis
+    description: >
+      Vintage triangle: cumulative ever-30 / ever-90 rates by disbursement
+      cohort and months on book. Unobserved cells are NULL, not zero.
+    tests:
+      - unique:
+          column_name: "disbursed_month || '|' || product_type || '|' || months_on_book"
+
+  - name: mart_collection_effectiveness
+    description: >
+      Collection performance by bucket, channel and action, with contact
+      rate, promise-to-pay rate and 14-day cure rate.
+    tests:
+      - unique:
+          column_name: "activity_month || '|' || dpd_bucket_at_contact || '|' || channel || '|' || action_code"
+
+  - name: mart_partner_performance
+    description: >
+      Marketplace partner economics: lead spend vs commission revenue,
+      alongside the credit performance of the loans they sourced.
+    tests:
+      - unique:
+          column_name: "partner_id || '|' || period_month"
+
+  - name: mart_customer_360
+    description: "One row per customer: acquisition, borrowing and repayment behaviour."
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: relationship_status
+        tests:
+          - accepted_values:
+              values: ['WRITTEN_OFF', 'DELINQUENT', 'ACTIVE_BORROWER',
+                       'DORMANT_GOOD', 'NEVER_BORROWED', 'REGISTERED_ONLY']

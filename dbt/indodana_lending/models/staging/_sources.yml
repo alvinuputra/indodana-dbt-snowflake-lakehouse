@@ -1,0 +1,53 @@
+version: 2
+
+sources:
+  - name: bronze
+    database: DEMO_INDODANA
+    schema: BRONZE
+    description: >
+      Raw append-only CDC landing zone. Every row is an immutable change
+      event from a source system; no row is ever updated or deleted here.
+      Resolving current state and history is the job of the silver layer.
+
+    tables:
+      - name: raw_customers
+        description: "Customer master change stream (core_lending.customers)."
+        columns:
+          - name: customer_id
+            description: "Business key. NOT unique in bronze — one row per version."
+          - name: _op
+            description: "Change type: I insert, U update, D soft delete."
+          - name: _commit_ts
+            description: "Commit time in the SOURCE system. May be backdated."
+          - name: _ingested_at
+            description: "Wall-clock landing time. The only monotonic column."
+
+      - name: raw_leads
+        description: "Cermati marketplace lead change stream."
+
+      - name: raw_loan_applications
+        description: "Loan application + underwriting decision change stream."
+
+      - name: raw_loans
+        description: >
+          Disbursed loan change stream. Status and outstanding principal
+          mutate over the life of the loan, so this table has the highest
+          version-per-key ratio in bronze.
+
+      - name: raw_installments
+        description: "Installment schedule; rows flip to PAID as payments post."
+
+      - name: raw_payments
+        description: "Payment events. Append-only in the source as well as here."
+
+      - name: raw_collection_activities
+        description: "Collection CRM contact attempts and outcomes."
+
+      - name: raw_partners
+        description: "Marketplace lending partners (banks, multifinance)."
+
+      - name: raw_merchants
+        description: "BNPL acceptance merchants."
+
+      - name: batch_log
+        description: "Ingest batch control table written by the ingest app."

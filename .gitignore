@@ -1,0 +1,24 @@
+# dbt
+dbt/indodana_lending/target/
+dbt/indodana_lending/dbt_packages/
+dbt/indodana_lending/logs/
+dbt/indodana_lending/package-lock.yml
+.user.yml
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Local secrets / connection config — must never be committed.
+# profiles.yml IS committed here on purpose: Snowflake-hosted dbt forbids
+# auth fields in it, so it carries no credentials.
+.env
+*.pem
+*.p8
+connections.toml
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp

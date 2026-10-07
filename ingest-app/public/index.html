@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Indodana / Cermati — Ingest Control Panel</title>
+<style>
+  :root {
+    --bg:        #0d1117;
+    --panel:     #161b22;
+    --panel-2:   #1c2128;
+    --border:    #30363d;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --bronze:    #cd7f32;
+    --silver:    #9fb0c0;
+    --gold:      #e3b341;
+    --accent:    #29b5e8;
+    --ok:        #3fb950;
+    --warn:      #d29922;
+    --err:       #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1340px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  header { display: flex; align-items: flex-end; justify-content: space-between;
+           gap: 20px; flex-wrap: wrap; border-bottom: 1px solid var(--border);
+           padding-bottom: 16px; margin-bottom: 24px; }
+  h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.2px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .conn { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+          color: var(--muted); text-align: right; }
+  .conn b { color: var(--accent); font-weight: 600; }
+
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px;
+       color: var(--muted); margin: 32px 0 12px; font-weight: 600; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .kpi .label { color: var(--muted); font-size: 11px; text-transform: uppercase;
+                letter-spacing: 0.6px; margin-bottom: 6px; }
+  .kpi .value { font-size: 23px; font-weight: 600; letter-spacing: -0.5px;
+                font-variant-numeric: tabular-nums; }
+  .kpi .note { color: var(--muted); font-size: 11px; margin-top: 3px; }
+  .kpi.risk .value { color: var(--warn); }
+
+  .flow { display: grid; grid-template-columns: 1fr 44px 1fr 44px 1fr; align-items: stretch; gap: 0; }
+  .layer { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .layer h3 { margin: 0 0 2px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .layer .meta { color: var(--muted); font-size: 11px; margin-bottom: 10px; }
+  .layer.bronze { border-color: rgba(205,127,50,.45); } .layer.bronze .dot { background: var(--bronze); }
+  .layer.silver { border-color: rgba(159,176,192,.4); } .layer.silver .dot { background: var(--silver); }
+  .layer.gold   { border-color: rgba(227,179,65,.45); } .layer.gold   .dot { background: var(--gold); }
+  .objs { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+  .objs li { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0;
+             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .objs li span:first-child { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .objs li span:last-child { font-variant-numeric: tabular-nums; }
+  .arrow { display: flex; align-items: center; justify-content: center;
+           color: var(--border); font-size: 20px; position: relative; }
+  .arrow .badge { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -140%);
+                  background: var(--err); color: #fff; font-size: 10px; font-weight: 700;
+                  padding: 1px 6px; border-radius: 9px; white-space: nowrap; }
+  .arrow .badge.clean { background: var(--ok); }
+
+  .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card h3 { margin: 0 0 4px; font-size: 15px; }
+  .card p { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; }
+  .row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .field { flex: 1 1 110px; min-width: 100px; }
+  .field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  input, select {
+    width: 100%; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; font-size: 13px;
+    font-family: inherit;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  button {
+    background: var(--accent); color: #04232e; border: none; border-radius: 6px;
+    padding: 8px 15px; font-size: 13px; font-weight: 600; cursor: pointer;
+    font-family: inherit; white-space: nowrap;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.12); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  button.hero { background: var(--gold); color: #2a1f00; padding: 10px 20px; font-size: 14px; }
+  button.danger { background: transparent; color: var(--err); border: 1px solid rgba(248,81,73,.5); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums;
+                   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .tbl-wrap { background: var(--panel); border: 1px solid var(--border);
+              border-radius: 10px; overflow: hidden; }
+  .pill { font-size: 10.5px; padding: 1px 7px; border-radius: 9px; font-weight: 700; letter-spacing: .3px; }
+  .pill.INSERT { background: rgba(63,185,80,.16);  color: var(--ok); }
+  .pill.UPDATE { background: rgba(41,181,232,.16); color: var(--accent); }
+  .pill.DELETE { background: rgba(248,81,73,.16);  color: var(--err); }
+  .pill.SEED   { background: rgba(227,179,65,.16); color: var(--gold); }
+
+  #console {
+    background: #010409; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px; line-height: 1.65; max-height: 420px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .log-ts { color: #484f58; }
+  .log-ok { color: var(--ok); }
+  .log-err { color: var(--err); }
+  .log-info { color: var(--accent); }
+  .log-dim { color: var(--muted); }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .spinner { width: 13px; height: 13px; border: 2px solid var(--border);
+             border-top-color: var(--accent); border-radius: 50%;
+             animation: spin .7s linear infinite; display: none; }
+  .spinner.on { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hint { color: var(--muted); font-size: 12px; }
+  @media (max-width: 900px) {
+    .flow { grid-template-columns: 1fr; }
+    .arrow { height: 30px; transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Indodana / Cermati — Lending Data Platform</h1>
+      <div class="sub">Bronze → Silver → Gold via dbt on Snowflake, with CDC</div>
+    </div>
+    <div class="conn">
+      connection <b id="c-conn">…</b><br>
+      warehouse <b id="c-wh">…</b><br>
+      project <b>DEMO_INDODANA.DBT.INDODANA_LENDING</b>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="hero" id="btn-cycle">Jalankan siklus lengkap</button>
+    <button class="ghost" id="btn-refresh">Refresh status</button>
+    <span class="spinner" id="spin"></span>
+    <span class="hint" id="busy-label"></span>
+  </div>
+
+  <h2>Portfolio hari ini</h2>
+  <div class="kpis" id="kpis"></div>
+
+  <h2>Pipeline</h2>
+  <div class="flow" id="flow"></div>
+
+  <h2>Aksi</h2>
+  <div class="actions">
+
+    <div class="card">
+      <h3>1 · Ingest batch baru</h3>
+      <p>Satu kohor lifecycle penuh: lead → aplikasi → keputusan underwriting →
+         pencairan → jadwal cicilan → pembayaran → aktivitas kolektor.
+         Semua mendarat di Bronze sebagai event <code>_OP='I'</code>.</p>
+      <div class="row">
+        <div class="field">
+          <label>Jumlah customer</label>
+          <input type="number" id="in-customers" value="150" min="1" max="5000">
+        </div>
+        <div class="field">
+          <label>Bulan ke belakang</label>
+          <input type="number" id="in-months" value="0" min="0" max="60">
+        </div>
+        <button id="btn-ingest">Ingest</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2 · CDC update</h3>
+      <p>Re-grade limit &amp; segmen risiko, settle cicilan yang jatuh tempo,
+         lalu hitung ulang status pinjaman. Mendarat sebagai event
+         <code>_OP='U'</code> — inilah yang diuji oleh merge incremental dan snapshot SCD2.</p>
+      <div class="row">
+        <div class="field">
+          <label>Customer di-update</label>
+          <input type="number" id="in-cdc-cust" value="120" min="0" max="20000">
+        </div>
+        <div class="field">
+          <label>Cicilan dibayar</label>
+          <input type="number" id="in-cdc-loan" value="200" min="0" max="20000">
+        </div>
+        <button id="btn-cdc-update">Update</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>3 · CDC delete</h3>
+      <p>Tombstone <code>_OP='D'</code>: lead duplikat di-merge dan aplikasi
+         ter-flag fraud dihapus. Baris tetap tersimpan dengan
+         <code>is_deleted = true</code> supaya jejak audit utuh.</p>
+      <div class="row">
+        <div class="field">
+          <label>Lead dihapus</label>
+          <input type="number" id="in-del-lead" value="15" min="0" max="5000">
+        </div>
+        <div class="field">
+          <label>Aplikasi dihapus</label>
+          <input type="number" id="in-del-app" value="10" min="0" max="5000">
+        </div>
+        <button class="danger" id="btn-cdc-delete">Delete</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>4 · Jalankan dbt di Snowflake</h3>
+      <p><code>EXECUTE DBT PROJECT</code> — dbt berjalan di dalam Snowflake,
+         bukan di laptop ini. Silver memakai merge incremental, snapshot
+         membangun history SCD2, Gold di-rebuild penuh.</p>
+      <div class="row">
+        <div class="field" style="flex: 1 1 100%">
+          <label>Perintah</label>
+          <select id="in-dbt"></select>
+        </div>
+        <button id="btn-dbt">Run dbt</button>
+      </div>
+    </div>
+
+  </div>
+
+  <h2>Tekanan CDC di Bronze</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>Entity</th>
+        <th class="num">Baris raw</th>
+        <th class="num">Business key</th>
+        <th class="num">Versi ekstra</th>
+        <th class="num">Update</th>
+        <th class="num">Delete</th>
+      </tr></thead>
+      <tbody id="cdc-body"></tbody>
+    </table>
+  </div>
+  <p class="hint" style="margin-top:8px">
+    “Versi ekstra” = baris raw dikurangi business key unik. Angka ini harus naik
+    setiap kali CDC update dijalankan — kalau tetap nol, yang tertangkap cuma
+    insert dan tidak ada yang perlu di-resolve.
+  </p>
+
+  <h2>Batch ingest terakhir</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>Batch</th><th>Tipe</th><th>Mulai</th>
+        <th class="num">Baris</th><th>Detail</th>
+      </tr></thead>
+      <tbody id="batch-body"></tbody>
+    </table>
+  </div>
+
+  <h2>Log</h2>
+  <div id="console"></div>
+
+</div>
+
+<script>
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (n === null || n === undefined || n === '') ? '—'
+  : Number(n).toLocaleString('id-ID');
+const fmtIdr = (n) => {
+  if (n === null || n === undefined || n === '') return '—';
+  const v = Number(n);
+  if (v >= 1e12) return 'Rp ' + (v / 1e12).toFixed(2) + ' T';
+  if (v >= 1e9)  return 'Rp ' + (v / 1e9).toFixed(2) + ' M';
+  if (v >= 1e6)  return 'Rp ' + (v / 1e6).toFixed(1) + ' jt';
+  return 'Rp ' + v.toLocaleString('id-ID');
+};
+
+let busy = false;
+
+function log(msg, cls) {
+  const el = $('console');
+  const ts = new Date().toLocaleTimeString('id-ID', { hour12: false });
+  const line = document.createElement('div');
+  const t = document.createElement('span');
+  t.className = 'log-ts';
+  t.textContent = ts + '  ';
+  const body = document.createElement('span');
+  if (cls) body.className = 'log-' + cls;
+  body.textContent = msg;
+  line.appendChild(t);
+  line.appendChild(body);
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function setBusy(on, label) {
+  busy = on;
+  $('spin').classList.toggle('on', on);
+  $('busy-label').textContent = on ? (label || 'bekerja…') : '';
+  document.querySelectorAll('button').forEach((b) => { b.disabled = on; });
+}
+
+async function api(method, pathname, body) {
+  const res = await fetch(pathname, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'unknown error');
+  return json;
+}
+
+// ------------------------------------------------------------------
+// Rendering
+// ------------------------------------------------------------------
+function renderKpis(h) {
+  const cards = [
+    { label: 'Customer',           value: fmt(h.CUSTOMERS_TOTAL) },
+    { label: 'Pinjaman dicairkan', value: fmt(h.LOANS_TOTAL),
+      note: fmt(h.LOANS_ACTIVE) + ' aktif' },
+    { label: 'Total pencairan',    value: fmtIdr(h.PRINCIPAL_DISBURSED) },
+    { label: 'Outstanding',        value: fmtIdr(h.OUTSTANDING_PRINCIPAL) },
+    { label: 'Total tertagih',     value: fmtIdr(h.TOTAL_COLLECTED) },
+    { label: 'NPL (by value)',     value: (h.NPL_RATIO_PCT ?? '—') + '%', risk: true,
+      note: 'DPD 90+ / outstanding' },
+    { label: 'Approval rate',      value: (h.APPROVAL_PCT ?? '—') + '%' }
+  ];
+  $('kpis').innerHTML = '';
+  for (const c of cards) {
+    const d = document.createElement('div');
+    d.className = 'kpi' + (c.risk ? ' risk' : '');
+    const l = document.createElement('div'); l.className = 'label'; l.textContent = c.label;
+    const v = document.createElement('div'); v.className = 'value'; v.textContent = c.value;
+    d.appendChild(l); d.appendChild(v);
+    if (c.note) { const n = document.createElement('div'); n.className = 'note'; n.textContent = c.note; d.appendChild(n); }
+    $('kpis').appendChild(d);
+  }
+}
+
+const LAYER_META = {
+  BRONZE: { cls: 'bronze', desc: 'Landing CDC append-only · 1 baris per perubahan' },
+  SILVER: { cls: 'silver', desc: 'Merge incremental + snapshot SCD2 · 1 baris per key' },
+  GOLD:   { cls: 'gold',   desc: 'Dimensi, fakta, mart bisnis' }
+};
+
+function renderFlow(counts, pending) {
+  const byLayer = { BRONZE: [], SILVER: [], GOLD: [] };
+  for (const r of counts) if (byLayer[r.LAYER]) byLayer[r.LAYER].push(r);
+
+  const totalPending = Number(pending.CUSTOMERS_PENDING || 0)
+                     + Number(pending.LOANS_PENDING || 0)
+                     + Number(pending.PAYMENTS_PENDING || 0);
+
+  const flow = $('flow');
+  flow.innerHTML = '';
+
+  const order = ['BRONZE', 'SILVER', 'GOLD'];
+  order.forEach((layer, idx) => {
+    const meta = LAYER_META[layer];
+    const box = document.createElement('div');
+    box.className = 'layer ' + meta.cls;
+
+    const h = document.createElement('h3');
+    const dot = document.createElement('span'); dot.className = 'dot';
+    h.appendChild(dot);
+    h.appendChild(document.createTextNode(layer));
+    const total = byLayer[layer].reduce((s, r) => s + Number(r.ROW_COUNT || 0), 0);
+    const tot = document.createElement('span');
+    tot.style.cssText = 'margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px';
+    tot.textContent = fmt(total);
+    h.appendChild(tot);
+    box.appendChild(h);
+
+    const m = document.createElement('div'); m.className = 'meta'; m.textContent = meta.desc;
+    box.appendChild(m);
+
+    const ul = document.createElement('ul'); ul.className = 'objs';
+    for (const r of byLayer[layer]) {
+      const li = document.createElement('li');
+      const a = document.createElement('span'); a.textContent = r.OBJECT_NAME;
+      const b = document.createElement('span'); b.textContent = fmt(r.ROW_COUNT);
+      li.appendChild(a); li.appendChild(b); ul.appendChild(li);
+    }
+    box.appendChild(ul);
+    flow.appendChild(box);
+
+    if (idx < 2) {
+      const ar = document.createElement('div'); ar.className = 'arrow';
+      ar.appendChild(document.createTextNode('\u2192'));
+      if (idx === 0) {
+        const badge = document.createElement('span');
+        badge.className = 'badge' + (totalPending === 0 ? ' clean' : '');
+        badge.textContent = totalPending === 0 ? 'sinkron' : fmt(totalPending) + ' pending';
+        ar.appendChild(badge);
+      }
+      flow.appendChild(ar);
+    }
+  });
+}
+
+function renderCdc(list) {
+  const tb = $('cdc-body');
+  tb.innerHTML = '';
+  for (const r of list) {
+    const tr = document.createElement('tr');
+    const cells = [
+      [r.ENTITY, false],
+      [fmt(r.RAW_ROWS), true],
+      [fmt(r.KEYS), true],
+      [fmt(r.EXTRA_VERSIONS), true],
+      [fmt(r.UPDATES), true],
+      [fmt(r.DELETES), true]
+    ];
+    for (const [val, num] of cells) {
+      const td = document.createElement('td');
+      if (num) td.className = 'num';
+      td.textContent = val;
+      tr.appendChild(td);
+    }
+    tb.appendChild(tr);
+  }
+}
+
+function renderBatches(list) {
+  const tb = $('batch-body');
+  tb.innerHTML = '';
+  for (const r of list) {
+    const tr = document.createElement('tr');
+
+    const c1 = document.createElement('td');
+    c1.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:11.5px';
+    c1.textContent = r.BATCH_ID;
+    tr.appendChild(c1);
+
+    const c2 = document.createElement('td');
+    const pill = document.createElement('span');
+    pill.className = 'pill ' + (r.BATCH_TYPE || '');
+    pill.textContent = r.BATCH_TYPE;
+    c2.appendChild(pill);
+    tr.appendChild(c2);
+
+    const c3 = document.createElement('td');
+    c3.textContent = r.STARTED_AT ? String(r.STARTED_AT).replace('T', ' ').slice(0, 19) : '—';
+    tr.appendChild(c3);
+
+    const c4 = document.createElement('td');
+    c4.className = 'num';
+    c4.textContent = fmt(r.ROWS_LANDED);
+    tr.appendChild(c4);
+
+    const c5 = document.createElement('td');
+    c5.style.cssText = 'color:var(--muted);font-size:11.5px';
+    c5.textContent = r.DETAIL || '';
+    tr.appendChild(c5);
+
+    tb.appendChild(tr);
+  }
+}
+
+async function refresh(quiet) {
+  if (!quiet) log('memuat status…', 'dim');
+  try {
+    const s = await api('GET', '/api/status');
+    $('c-conn').textContent = s.connection;
+    $('c-wh').textContent = s.warehouse;
+    renderKpis(s.headline);
+    renderFlow(s.counts, s.pending);
+    renderCdc(s.cdcPressure);
+    renderBatches(s.batches);
+    if (!quiet) log('status diperbarui (' + s.elapsedMs + ' ms)', 'ok');
+  } catch (e) {
+    log('gagal memuat status: ' + e.message, 'err');
+  }
+}
+
+// ------------------------------------------------------------------
+// Actions
+// ------------------------------------------------------------------
+async function doIngest() {
+  const customers = Number($('in-customers').value);
+  const monthsBack = Number($('in-months').value);
+  setBusy(true, 'ingest ' + customers + ' customer…');
+  log('ingest batch: ' + customers + ' customer, ' + monthsBack + ' bulan ke belakang', 'info');
+  try {
+    const r = await api('POST', '/api/ingest', { customers, monthsBack });
+    log(r.message, 'ok');
+  } catch (e) {
+    log('ingest gagal: ' + e.message, 'err');
+  } finally {
+    setBusy(false);
+    await refresh(true);
+  }
+}
+
+async function doCdcUpdate() {
+  const customers = Number($('in-cdc-cust').value);
+  const loans = Number($('in-cdc-loan').value);
+  setBusy(true, 'emit CDC update…');
+  log('CDC update: ' + customers + ' customer, ' + loans + ' cicilan', 'info');
+  try {
+    const r = await api('POST', '/api/cdc-update', { customers, loans });
+    log(r.message, 'ok');
+  } catch (e) {
+    log('CDC update gagal: ' + e.message, 'err');
+  } finally {
+    setBusy(false);
+    await refresh(true);
+  }
+}
+
+async function doCdcDelete() {
+  const leads = Number($('in-del-lead').value);
+  const applications = Number($('in-del-app').value);
+  setBusy(true, 'emit tombstone…');
+  log('CDC delete: ' + leads + ' lead, ' + applications + ' aplikasi', 'info');
+  try {
+    const r = await api('POST', '/api/cdc-delete', { leads, applications });
+    log(r.message, 'ok');
+  } catch (e) {
+    log('CDC delete gagal: ' + e.message, 'err');
+  } finally {
+    setBusy(false);
+    await refresh(true);
+  }
+}
+
+async function doDbt(presetOverride) {
+  const preset = presetOverride || $('in-dbt').value;
+  setBusy(true, 'dbt ' + preset + ' berjalan di Snowflake…');
+  log('EXECUTE DBT PROJECT — preset "' + preset + '"', 'info');
+  try {
+    const r = await api('POST', '/api/dbt', { preset });
+    log('dbt args: ' + r.args, 'dim');
+    if (r.log) {
+      // surface the summary lines, not the whole per-model firehose
+      const keep = r.log.split('\n').filter((l) =>
+        /Done\.|Completed|Finished running|ERROR|FAIL|Database Error|Compilation Error|Found \d+ models/.test(l));
+      (keep.length ? keep : r.log.split('\n').slice(-12)).forEach((l) => {
+        const t = l.trim();
+        if (t) log('  ' + t, /ERROR|FAIL|Error/.test(t) ? 'err' : 'dim');
+      });
+    }
+    if (r.exception) log('exception: ' + r.exception, 'err');
+    log(r.success ? 'dbt selesai sukses (' + r.elapsedMs + ' ms)'
+                  : 'dbt selesai DENGAN KEGAGALAN', r.success ? 'ok' : 'err');
+    return r.success;
+  } catch (e) {
+    log('dbt gagal: ' + e.message, 'err');
+    return false;
+  } finally {
+    setBusy(false);
+    await refresh(true);
+  }
+}
+
+// The demo in one click: land new events, mutate existing ones, then let
+// dbt resolve both into silver and rebuild gold.
+async function doFullCycle() {
+  log('=== siklus lengkap dimulai ===', 'info');
+  await doIngest();
+  await doCdcUpdate();
+  await doCdcDelete();
+  const ok = await doDbt('build');
+  log('=== siklus lengkap selesai' + (ok ? '' : ' (dbt gagal)') + ' ===',
+      ok ? 'ok' : 'err');
+}
+
+// ------------------------------------------------------------------
+// Boot
+// ------------------------------------------------------------------
+(async function init() {
+  $('btn-refresh').addEventListener('click', () => refresh(false));
+  $('btn-ingest').addEventListener('click', doIngest);
+  $('btn-cdc-update').addEventListener('click', doCdcUpdate);
+  $('btn-cdc-delete').addEventListener('click', doCdcDelete);
+  $('btn-dbt').addEventListener('click', () => doDbt());
+  $('btn-cycle').addEventListener('click', doFullCycle);
+
+  try {
+    const p = await api('GET', '/api/presets');
+    const sel = $('in-dbt');
+    for (const item of p.presets) {
+      const o = document.createElement('option');
+      o.value = item.key;
+      o.textContent = item.label + '  —  dbt ' + item.args;
+      sel.appendChild(o);
+    }
+    sel.value = 'build';
+  } catch (e) {
+    log('tidak bisa memuat preset dbt: ' + e.message, 'err');
+  }
+
+  log('control panel siap', 'ok');
+  await refresh(false);
+})();
+</script>
+</body>
+</html>

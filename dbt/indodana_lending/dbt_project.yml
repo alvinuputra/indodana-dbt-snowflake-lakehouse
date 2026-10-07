@@ -1,0 +1,49 @@
+name: 'indodana_lending'
+version: '1.0.0'
+config-version: 2
+profile: 'indodana_lending'
+
+model-paths:    ["models"]
+snapshot-paths: ["snapshots"]
+macro-paths:    ["macros"]
+test-paths:     ["tests"]
+seed-paths:     ["seeds"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Delinquency policy. Every DPD bucket, NPL cut and write-off threshold in
+  # the gold layer reads these instead of hardcoding numbers, so a change in
+  # credit policy is a one-line edit rather than a hunt across models.
+  npl_dpd_threshold: 90
+  writeoff_dpd_threshold: 180
+  vintage_max_months_on_book: 12
+
+models:
+  indodana_lending:
+    staging:
+      +schema: SILVER
+      +materialized: view
+      +tags: ['staging']
+    silver:
+      +schema: SILVER
+      +materialized: incremental
+      +incremental_strategy: merge
+      +on_schema_change: append_new_columns
+      +tags: ['silver']
+    gold:
+      +schema: GOLD
+      +materialized: table
+      +tags: ['gold']
+      dim:
+        +tags: ['dimension']
+      fct:
+        +tags: ['fact']
+      mart:
+        +tags: ['mart']
+
+snapshots:
+  indodana_lending:
+    +target_schema: SILVER
+    +tags: ['snapshot']

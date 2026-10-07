@@ -1,0 +1,78 @@
+version: 2
+
+models:
+  - name: fct_loan_application
+    description: "Grain: one row per loan application, with its decision and outcome."
+    columns:
+      - name: application_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: requested_amount
+        tests: [not_null]
+
+  - name: fct_loan
+    description: >
+      Grain: one row per disbursed loan, with exposure, repayment progress
+      and delinquency measures including ever-30 / ever-90 flags.
+    columns:
+      - name: loan_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: principal_amount
+        tests: [not_null]
+      - name: current_dpd
+        tests: [not_null]
+      - name: current_dpd_bucket
+        tests:
+          - accepted_values:
+              values: ['X (current)', '1-30', '31-60', '61-90', '91-180', '180+']
+
+  - name: fct_installment
+    description: "Grain: one row per instalment, bucketed as at today."
+    columns:
+      - name: installment_id
+        tests: [unique, not_null]
+      - name: loan_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_loan')
+              field: loan_id
+      - name: total_due
+        tests: [not_null]
+
+  - name: fct_payment
+    description: "Grain: one row per payment received."
+    columns:
+      - name: payment_id
+        tests: [unique, not_null]
+      - name: loan_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_loan')
+              field: loan_id
+      - name: amount
+        tests: [not_null]
+
+  - name: fct_collection_activity
+    description: "Grain: one row per collection contact attempt."
+    columns:
+      - name: activity_id
+        tests: [unique, not_null]
+      - name: loan_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_loan')
+              field: loan_id
